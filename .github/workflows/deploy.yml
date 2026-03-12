@@ -1,43 +1,74 @@
-name: deploy
+name: Deploy to Google Apps Script
 
 on:
   push:
     branches: ["main"]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: gas-deploy-main
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      GOOGLE_WEB_APP_URL: https://script.google.com/macros/s/AKfycbx3-k1M9b6Rxa0LpALcRFO9ZrsVhESiHqFgDTTbya647Qv10XMsJPcMmsvbQ2H0MrA4/exec
+      CLASPRC_JSON_B64: ${{ secrets.CLASPRC_JSON_B64 }}
+      CLASP_SCRIPT_ID: ${{ secrets.CLASP_SCRIPT_ID }}
+      GAS_DEPLOYMENT_ID: ${{ secrets.GAS_DEPLOYMENT_ID }}
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v6
+      - name: Validate required secrets
+        run: |
+          missing=0
+          for key in CLASPRC_JSON_B64 CLASP_SCRIPT_ID GAS_DEPLOYMENT_ID; do
+            if [ -z "${!key}" ]; then
+              echo "::error::Missing required secret: $key"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
         with:
           node-version: "20"
 
-      - run: npm install -g @google/clasp
+      - name: Install clasp
+        run: npm install -g @google/clasp
 
-      - name: Write clasp creds
+      - name: Write clasp credentials
         run: |
-          echo "${{ secrets.CLASPRC_JSON_B64 }}" | base64 -d > ~/.clasprc.json
+          echo "$CLASPRC_JSON_B64" | base64 -d > ~/.clasprc.json
           chmod 600 ~/.clasprc.json
 
       - name: Write .clasp.json
         run: |
-          cat > .clasp.json <<'EOF'
-          {"scriptId":"${{ secrets.CLASP_SCRIPT_ID }}","rootDir":"."}
+          cat > .clasp.json <<EOF
+          {"scriptId":"$CLASP_SCRIPT_ID","rootDir":"."}
           EOF
 
-      - name: Push to Apps Script
+      - name: Push project files
         run: clasp push -f
 
-      - name: Create new version
+      - name: Create Apps Script version
         run: clasp version "CI $GITHUB_SHA"
 
-      - name: Redeploy existing deployment
-        env:
-          GAS_DEPLOYMENT_ID: ${{ secrets.GAS_DEPLOYMENT_ID }}
+      - name: Redeploy existing web app deployment
+        run: clasp deploy -i "$GAS_DEPLOYMENT_ID" -d "CI redeploy $GITHUB_SHA"
+
+      - name: Deployment summary
         run: |
-          clasp deploy -i "$GAS_DEPLOYMENT_ID" -d "CI redeploy $GITHUB_SHA"
+          {
+            echo "### Google Apps Script deployment complete"
+            echo "- Deployment ID: \\`$GAS_DEPLOYMENT_ID\\`"
+            echo "- Web app URL: $GOOGLE_WEB_APP_URL"
+          } >> "$GITHUB_STEP_SUMMARY"
