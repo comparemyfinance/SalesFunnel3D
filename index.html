@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Compare My Finance - 3D Sales Funnel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app-shell">
+    <aside class="panel controls-panel">
+      <div class="brand">
+        <div class="brand-badge"></div>
+        <div>
+          <h1>3D Sales Funnel</h1>
+          <p>Compare My Finance pipeline physics demo</p>
+        </div>
+      </div>
+
+      <section>
+        <h2>Live Inputs</h2>
+        <div class="field-grid">
+          <label>
+            <span>Enquiries / day</span>
+            <input id="enquiriesPerDay" type="number" min="100" step="100" value="12000" />
+          </label>
+          <label>
+            <span>Bubble spawn / sec</span>
+            <input id="spawnRate" type="number" min="1" max="40" step="1" value="8" />
+          </label>
+        </div>
+      </section>
+
+      <section>
+        <h2>Conversion Model</h2>
+        <div class="slider-stack">
+          <label>
+            <span>VRN/Experian no-finance decline <strong id="vrnPctOut">25%</strong></span>
+            <input id="vrnPct" type="range" min="0" max="100" step="1" value="25" />
+          </label>
+          <label>
+            <span>Uncontactable / no response <strong id="contactLossPctOut">40%</strong></span>
+            <input id="contactLossPct" type="range" min="0" max="100" step="1" value="40" />
+          </label>
+          <label>
+            <span>Pre-Qual success of contactable <strong id="prequalPctOut">50%</strong></span>
+            <input id="prequalPct" type="range" min="0" max="100" step="1" value="50" />
+          </label>
+          <label>
+            <span>Lender terms offered <strong id="termsPctOut">45%</strong></span>
+            <input id="termsPct" type="range" min="0" max="100" step="1" value="45" />
+          </label>
+          <label>
+            <span>Docs returned in 2 weeks <strong id="docsPctOut">75%</strong></span>
+            <input id="docsPct" type="range" min="0" max="100" step="1" value="75" />
+          </label>
+        </div>
+      </section>
+
+      <section>
+        <h2>Value Split</h2>
+        <div class="field-grid three-up">
+          <label>
+            <span>Introducer %</span>
+            <input id="introPct" type="number" min="0" max="100" step="1" value="33" />
+          </label>
+          <label>
+            <span>Ops %</span>
+            <input id="opsPct" type="number" min="0" max="100" step="1" value="33" />
+          </label>
+          <label>
+            <span>EBITDA %</span>
+            <input id="ebitdaPct" type="number" min="0" max="100" step="1" value="34" />
+          </label>
+        </div>
+        <label>
+          <span>Value per completed client (£)</span>
+          <input id="clientValue" type="number" min="1" step="1" value="948" />
+        </label>
+      </section>
+
+      <section>
+        <h2>Projected Daily Output</h2>
+        <div id="projection" class="projection-card"></div>
+      </section>
+    </aside>
+
+    <main>
+      <div id="scene"></div>
+      <div class="legend panel">
+        <div class="legend-item"><span class="dot live"></span>Main funnel</div>
+        <div class="legend-item"><span class="dot ntu"></span>NTU / decline funnel</div>
+        <div class="legend-item"><span class="dot sold"></span>Completed clients</div>
+      </div>
+      <div class="kpi-bar panel">
+        <div><span>Enquiries processed</span><strong id="processedCount">0</strong></div>
+        <div><span>NTU bubbles</span><strong id="ntuCount">0</strong></div>
+        <div><span>Completed clients</span><strong id="wonCount">0</strong></div>
+        <div><span>Gross revenue</span><strong id="grossValue">£0</strong></div>
+      </div>
+    </main>
+
+    <aside class="panel tally-panel">
+      <h2>Live Tally</h2>
+      <div class="tally-card intro">
+        <span>Introducer / Acquisition</span>
+        <strong id="introValue">£0</strong>
+      </div>
+      <div class="tally-card ops">
+        <span>Operational Costs</span>
+        <strong id="opsValue">£0</strong>
+      </div>
+      <div class="tally-card ebitda">
+        <span>EBITDA</span>
+        <strong id="ebitdaValue">£0</strong>
+      </div>
+      <p class="note">Each completed client bubble enters the value chamber, collides with other bubbles, then exits left, right, or downward based on the value split.</p>
+    </aside>
+  </div>
+
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
