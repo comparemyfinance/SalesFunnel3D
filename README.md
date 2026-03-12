@@ -39,7 +39,8 @@ Set these in **Settings → Secrets and variables → Actions**:
 
 - `CLASPRC_JSON_B64`
   - Base64-encoded contents of your local `~/.clasprc.json` used by `clasp` authentication.
-  - Example command to generate: `base64 -w 0 ~/.clasprc.json`
+  - Example command to generate (Linux): `base64 -w 0 ~/.clasprc.json`
+  - Example command to generate (macOS): `base64 ~/.clasprc.json | tr -d "\n"`
 - `CLASP_SCRIPT_ID`
   - Apps Script project Script ID for this web app project.
 - `GAS_DEPLOYMENT_ID`
@@ -57,9 +58,37 @@ The workflow does the following:
 1. Validates required secrets exist.
 2. Installs `@google/clasp`.
 3. Writes runtime auth/config files (`~/.clasprc.json` and `.clasp.json`).
+<<<<<<< codex/review-repo-for-index.html-issues-4wyxhz
+4. Verifies Apps Script connectivity via `clasp status`.
+5. Pushes project files with `clasp push --force`.
+6. Creates a new Apps Script version.
+7. Redeploys the existing deployment ID.
+8. Writes a deployment summary (deployment ID, version, URL) to the GitHub Action run summary.
+
+If deployment fails, check the workflow logs first for missing/invalid secrets, auth issues, or a script/deployment ID mismatch.
+
+
+### One-time local auth bootstrap
+
+If you still need to create `CLASPRC_JSON_B64`:
+
+1. Install clasp locally: `npm i -g @google/clasp`
+2. Login once: `clasp login`
+3. Base64-encode your generated `~/.clasprc.json` and store as the `CLASPRC_JSON_B64` repo secret.
+
+After these secrets are in place, deploys should work from GitHub Actions without local machine access.
+
+## Optional: PR auto-merge allow-list
+
+The workflow `.github/workflows/automerge.yml` now reads a repository variable named `CODEX_AUTOMERGE_AUTHORS` (comma-separated GitHub logins).
+
+- If the variable is empty/missing, auto-merge is skipped safely.
+- Example value: `codex-bot,octocat`
+=======
 4. Pushes project files with `clasp push -f`.
 5. Creates a new Apps Script version.
 6. Redeploys the existing deployment ID.
 
 If deployment fails, check the workflow logs first for missing/invalid secrets or auth issues.
 
+>>>>>>> SalesFunnelBubble

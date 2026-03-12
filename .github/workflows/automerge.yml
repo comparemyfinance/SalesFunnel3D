@@ -18,11 +18,23 @@ jobs:
           script: |
             const pr = context.payload.pull_request;
 
-            // Replace with the exact Codex PR author login you see on GitHub
-            const allowedAuthors = new Set(["REPLACE_ME"]);
+            // Configure a comma-separated allow-list in repository variable CODEX_AUTOMERGE_AUTHORS
+            // Example: codex-bot,octocat
+            const raw = process.env.CODEX_AUTOMERGE_AUTHORS || '';
+            const allowedAuthors = new Set(
+              raw
+                .split(',')
+                .map(s => s.trim())
+                .filter(Boolean)
+            );
+
+            if (!allowedAuthors.size) {
+              core.info('CODEX_AUTOMERGE_AUTHORS is not configured; skipping auto-merge.');
+              return;
+            }
 
             if (!allowedAuthors.has(pr.user.login)) return;
-            if (pr.base.ref !== "main") return;
+            if (pr.base.ref !== 'main') return;
 
             await github.graphql(`
               mutation EnableAutoMerge($pullRequestId: ID!) {
@@ -32,3 +44,5 @@ jobs:
                 }) { pullRequest { number } }
               }
             `, { pullRequestId: pr.node_id });
+        env:
+          CODEX_AUTOMERGE_AUTHORS: ${{ vars.CODEX_AUTOMERGE_AUTHORS }}
