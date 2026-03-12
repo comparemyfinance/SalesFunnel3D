@@ -83,6 +83,10 @@ If you still need to create `CLASPRC_JSON_B64`:
 
 After these secrets are in place, deploys should work from GitHub Actions without local machine access.
 
+## Rebuild plan
+
+A phased Apps Script-first rebuild plan is tracked in `docs/gas-rebuild-pr-plan.md`.
+
 ## Optional: PR auto-merge allow-list
 
 The workflow `.github/workflows/automerge.yml` now reads a repository variable named `CODEX_AUTOMERGE_AUTHORS` (comma-separated GitHub logins).
