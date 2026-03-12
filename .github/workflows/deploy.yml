@@ -42,10 +42,6 @@ jobs:
 
       - name: Setup Node
         uses: actions/setup-node@v4
-          [ "$missing" -eq 0 ]
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
         with:
           node-version: '20'
 
@@ -58,12 +54,6 @@ jobs:
         run: |
           set -euo pipefail
           printf '%s' "$CLASPRC_JSON_B64" | base64 --decode > ~/.clasprc.json
-        run: npm install --global @google/clasp
-
-      - name: Write clasp credentials
-        run: |
-          set -euo pipefail
-          printf '%s' "$CLASPRC_JSON_B64" | base64 --decode > ~/.clasprc.json
           chmod 600 ~/.clasprc.json
 
       - name: Write .clasp.json
@@ -71,10 +61,7 @@ jobs:
           CLASP_SCRIPT_ID: ${{ secrets.CLASP_SCRIPT_ID }}
         run: |
           set -euo pipefail
-          set -euo pipefail
-          cat > .clasp.json <<EOF
-          {"scriptId":"$CLASP_SCRIPT_ID","rootDir":"."}
-          EOF
+          printf '{"scriptId":"%s","rootDir":"."}\n' "$CLASP_SCRIPT_ID" > .clasp.json
 
       - name: Show clasp status
         run: clasp status
@@ -106,15 +93,6 @@ jobs:
             echo "- Deployment ID: $GAS_DEPLOYMENT_ID"
             if [ -n "${VERSION_NUMBER:-}" ]; then
               echo "- Version: $VERSION_NUMBER"
-            fi
-            echo "- Web app URL: https://script.google.com/macros/s/$GAS_DEPLOYMENT_ID/exec"
-      - name: Deployment summary
-        run: |
-          {
-            echo "### Google Apps Script deployment complete"
-            echo "- Deployment ID: \`$GAS_DEPLOYMENT_ID\`"
-            if [ -n "${{ steps.version.outputs.version_number }}" ]; then
-              echo "- Version: \`${{ steps.version.outputs.version_number }}\`"
             fi
             echo "- Web app URL: https://script.google.com/macros/s/$GAS_DEPLOYMENT_ID/exec"
           } >> "$GITHUB_STEP_SUMMARY"
