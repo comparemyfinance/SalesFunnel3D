@@ -57,12 +57,13 @@ The workflow does the following:
 
 1. Validates required secrets exist.
 2. Installs `@google/clasp`.
-3. Writes runtime auth/config files (`~/.clasprc.json` and `.clasp.json`).
-4. Verifies Apps Script connectivity via `clasp status`.
-5. Pushes project files with `clasp push --force`.
-6. Creates a new Apps Script version.
-7. Redeploys the existing deployment ID.
-8. Writes a deployment summary (deployment ID, version, URL) to the GitHub Action run summary.
+3. Builds an Apps Script-safe payload in `.gas-dist` (inlined CSS/JS + `Code.gs` + `appsscript.json`).
+4. Writes runtime auth/config files (`~/.clasprc.json` and `.clasp.json`).
+5. Verifies Apps Script connectivity via `clasp status`.
+6. Pushes project files with `clasp push --force`.
+7. Creates a new Apps Script version.
+8. Redeploys the existing deployment ID.
+9. Writes a deployment summary (deployment ID, version, URL) to the GitHub Action run summary.
 
 If deployment fails, check the workflow logs first for missing/invalid secrets, auth issues, or a script/deployment ID mismatch.
 
