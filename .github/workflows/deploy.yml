@@ -2,7 +2,8 @@ name: Deploy to Google Apps Script
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -16,74 +17,65 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-<<<<<<< codex/review-repo-for-index.html-issues-4wyxhz
-=======
-      GOOGLE_WEB_APP_URL: https://script.google.com/macros/s/AKfycbx3-k1M9b6Rxa0LpALcRFO9ZrsVhESiHqFgDTTbya647Qv10XMsJPcMmsvbQ2H0MrA4/exec
->>>>>>> SalesFunnelBubble
       CLASPRC_JSON_B64: ${{ secrets.CLASPRC_JSON_B64 }}
       CLASP_SCRIPT_ID: ${{ secrets.CLASP_SCRIPT_ID }}
       GAS_DEPLOYMENT_ID: ${{ secrets.GAS_DEPLOYMENT_ID }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Validate required secrets
+        env:
+          CLASPRC_JSON_B64: ${{ secrets.CLASPRC_JSON_B64 }}
+          CLASP_SCRIPT_ID: ${{ secrets.CLASP_SCRIPT_ID }}
+          GAS_DEPLOYMENT_ID: ${{ secrets.GAS_DEPLOYMENT_ID }}
         run: |
-<<<<<<< codex/review-repo-for-index.html-issues-4wyxhz
           set -euo pipefail
           missing=0
           for key in CLASPRC_JSON_B64 CLASP_SCRIPT_ID GAS_DEPLOYMENT_ID; do
             if [ -z "${!key:-}" ]; then
-=======
-          missing=0
-          for key in CLASPRC_JSON_B64 CLASP_SCRIPT_ID GAS_DEPLOYMENT_ID; do
-            if [ -z "${!key}" ]; then
->>>>>>> SalesFunnelBubble
               echo "::error::Missing required secret: $key"
               missing=1
             fi
           done
-<<<<<<< codex/review-repo-for-index.html-issues-4wyxhz
           [ "$missing" -eq 0 ]
-=======
-          if [ "$missing" -ne 0 ]; then
-            exit 1
-          fi
->>>>>>> SalesFunnelBubble
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+          [ "$missing" -eq 0 ]
 
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: '20'
 
       - name: Install clasp
-<<<<<<< codex/review-repo-for-index.html-issues-4wyxhz
+        run: npm install --global @google/clasp
+
+      - name: Write clasp credentials
+        env:
+          CLASPRC_JSON_B64: ${{ secrets.CLASPRC_JSON_B64 }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$CLASPRC_JSON_B64" | base64 --decode > ~/.clasprc.json
         run: npm install --global @google/clasp
 
       - name: Write clasp credentials
         run: |
           set -euo pipefail
           printf '%s' "$CLASPRC_JSON_B64" | base64 --decode > ~/.clasprc.json
-=======
-        run: npm install -g @google/clasp
-
-      - name: Write clasp credentials
-        run: |
-          echo "$CLASPRC_JSON_B64" | base64 -d > ~/.clasprc.json
->>>>>>> SalesFunnelBubble
           chmod 600 ~/.clasprc.json
 
       - name: Write .clasp.json
+        env:
+          CLASP_SCRIPT_ID: ${{ secrets.CLASP_SCRIPT_ID }}
         run: |
-<<<<<<< codex/review-repo-for-index.html-issues-4wyxhz
           set -euo pipefail
-=======
->>>>>>> SalesFunnelBubble
+          set -euo pipefail
           cat > .clasp.json <<EOF
           {"scriptId":"$CLASP_SCRIPT_ID","rootDir":"."}
           EOF
 
-<<<<<<< codex/review-repo-for-index.html-issues-4wyxhz
       - name: Show clasp status
         run: clasp status
 
@@ -96,35 +88,33 @@ jobs:
           set -euo pipefail
           out=$(clasp version "CI $GITHUB_SHA")
           echo "$out"
-          version_number=$(echo "$out" | sed -n 's/.*Created version \([0-9][0-9]*\).*/\1/p' | tail -n1)
+          version_number=$(echo "$out" | sed -n 's/.*Created version \([0-9][0-9]*\).*/\1/p' | tail -n 1)
           echo "version_number=$version_number" >> "$GITHUB_OUTPUT"
 
       - name: Redeploy existing web app deployment
+        env:
+          GAS_DEPLOYMENT_ID: ${{ secrets.GAS_DEPLOYMENT_ID }}
         run: clasp deploy --deploymentId "$GAS_DEPLOYMENT_ID" --description "CI redeploy $GITHUB_SHA"
 
-=======
-      - name: Push project files
-        run: clasp push -f
-
-      - name: Create Apps Script version
-        run: clasp version "CI $GITHUB_SHA"
-
-      - name: Redeploy existing web app deployment
-        run: clasp deploy -i "$GAS_DEPLOYMENT_ID" -d "CI redeploy $GITHUB_SHA"
-
->>>>>>> SalesFunnelBubble
+      - name: Deployment summary
+        env:
+          GAS_DEPLOYMENT_ID: ${{ secrets.GAS_DEPLOYMENT_ID }}
+          VERSION_NUMBER: ${{ steps.version.outputs.version_number }}
+        run: |
+          {
+            echo "### Google Apps Script deployment complete"
+            echo "- Deployment ID: $GAS_DEPLOYMENT_ID"
+            if [ -n "${VERSION_NUMBER:-}" ]; then
+              echo "- Version: $VERSION_NUMBER"
+            fi
+            echo "- Web app URL: https://script.google.com/macros/s/$GAS_DEPLOYMENT_ID/exec"
       - name: Deployment summary
         run: |
           {
             echo "### Google Apps Script deployment complete"
-<<<<<<< codex/review-repo-for-index.html-issues-4wyxhz
             echo "- Deployment ID: \`$GAS_DEPLOYMENT_ID\`"
             if [ -n "${{ steps.version.outputs.version_number }}" ]; then
               echo "- Version: \`${{ steps.version.outputs.version_number }}\`"
             fi
             echo "- Web app URL: https://script.google.com/macros/s/$GAS_DEPLOYMENT_ID/exec"
-=======
-            echo "- Deployment ID: \\`$GAS_DEPLOYMENT_ID\\`"
-            echo "- Web app URL: $GOOGLE_WEB_APP_URL"
->>>>>>> SalesFunnelBubble
           } >> "$GITHUB_STEP_SUMMARY"

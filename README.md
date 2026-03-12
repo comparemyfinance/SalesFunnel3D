@@ -58,7 +58,6 @@ The workflow does the following:
 1. Validates required secrets exist.
 2. Installs `@google/clasp`.
 3. Writes runtime auth/config files (`~/.clasprc.json` and `.clasp.json`).
-<<<<<<< codex/review-repo-for-index.html-issues-4wyxhz
 4. Verifies Apps Script connectivity via `clasp status`.
 5. Pushes project files with `clasp push --force`.
 6. Creates a new Apps Script version.
@@ -84,11 +83,3 @@ The workflow `.github/workflows/automerge.yml` now reads a repository variable n
 
 - If the variable is empty/missing, auto-merge is skipped safely.
 - Example value: `codex-bot,octocat`
-=======
-4. Pushes project files with `clasp push -f`.
-5. Creates a new Apps Script version.
-6. Redeploys the existing deployment ID.
-
-If deployment fails, check the workflow logs first for missing/invalid secrets or auth issues.
-
->>>>>>> SalesFunnelBubble
