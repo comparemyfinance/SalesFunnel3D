@@ -24,7 +24,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Validate required secrets
+      - name: Validate required secrets and IDs
         env:
           CLASPRC_JSON_B64: ${{ secrets.CLASPRC_JSON_B64 }}
           CLASP_SCRIPT_ID: ${{ secrets.CLASP_SCRIPT_ID }}
@@ -39,6 +39,18 @@ jobs:
             fi
           done
           [ "$missing" -eq 0 ]
+
+          # Catch the most common configuration mistake: swapping script ID and deployment ID.
+          if [[ "$CLASP_SCRIPT_ID" == AKfy* ]]; then
+            echo "::error::CLASP_SCRIPT_ID looks like a deployment/web-app ID (starts with AKfy...)."
+            echo "::error::Set CLASP_SCRIPT_ID to the Apps Script project Script ID from Project Settings."
+            exit 1
+          fi
+
+          if [[ "$GAS_DEPLOYMENT_ID" != AKfy* ]]; then
+            echo "::error::GAS_DEPLOYMENT_ID should look like a web-app deployment ID (typically starts with AKfy...)."
+            exit 1
+          fi
 
       - name: Setup Node
         uses: actions/setup-node@v5
@@ -94,6 +106,14 @@ jobs:
 
       - name: Show clasp status
         run: clasp status
+
+      - name: Debug generated Apps Script payload
+        run: |
+          set -euo pipefail
+          echo "Generated files in .gas-dist:"
+          find .gas-dist -maxdepth 1 -type f -print | sort
+          echo ".clasp.json:" 
+          cat .clasp.json
 
       - name: Push project files
         run: clasp push --force

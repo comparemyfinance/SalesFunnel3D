@@ -67,6 +67,11 @@ The workflow does the following:
 
 If deployment fails, check the workflow logs first for missing/invalid secrets, auth issues, or a script/deployment ID mismatch.
 
+Troubleshooting quick checks:
+- `CLASP_SCRIPT_ID` must be the **Apps Script project Script ID** (not the deployment/web-app ID).
+- `GAS_DEPLOYMENT_ID` is the web-app deployment ID and typically starts with `AKfy...`.
+- If `clasp push` returns `Request contains an invalid argument`, first verify those two IDs are not swapped.
+
 
 ### One-time local auth bootstrap
 
