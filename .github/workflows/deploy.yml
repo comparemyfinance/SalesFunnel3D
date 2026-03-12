@@ -1,43 +1,94 @@
-name: deploy
+name: Deploy to Google Apps Script
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: gas-deploy-main
+  cancel-in-progress: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "20"
-
-      - run: npm install -g @google/clasp
-
-      - name: Write clasp creds
+      - name: Validate required secrets
+        env:
+          CLASPRC_JSON_B64: ${{ secrets.CLASPRC_JSON_B64 }}
+          CLASP_SCRIPT_ID: ${{ secrets.CLASP_SCRIPT_ID }}
+          GAS_DEPLOYMENT_ID: ${{ secrets.GAS_DEPLOYMENT_ID }}
         run: |
-          echo "${{ secrets.CLASPRC_JSON_B64 }}" | base64 -d > ~/.clasprc.json
+          set -euo pipefail
+          missing=0
+          for key in CLASPRC_JSON_B64 CLASP_SCRIPT_ID GAS_DEPLOYMENT_ID; do
+            if [ -z "${!key:-}" ]; then
+              echo "::error::Missing required secret: $key"
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ]
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install clasp
+        run: npm install --global @google/clasp
+
+      - name: Write clasp credentials
+        env:
+          CLASPRC_JSON_B64: ${{ secrets.CLASPRC_JSON_B64 }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$CLASPRC_JSON_B64" | base64 --decode > ~/.clasprc.json
           chmod 600 ~/.clasprc.json
 
       - name: Write .clasp.json
+        env:
+          CLASP_SCRIPT_ID: ${{ secrets.CLASP_SCRIPT_ID }}
         run: |
-          cat > .clasp.json <<'EOF'
-          {"scriptId":"${{ secrets.CLASP_SCRIPT_ID }}","rootDir":"."}
-          EOF
+          set -euo pipefail
+          printf '{"scriptId":"%s","rootDir":"."}\n' "$CLASP_SCRIPT_ID" > .clasp.json
 
-      - name: Push to Apps Script
-        run: clasp push -f
+      - name: Show clasp status
+        run: clasp status
 
-      - name: Create new version
-        run: clasp version "CI $GITHUB_SHA"
+      - name: Push project files
+        run: clasp push --force
 
-      - name: Redeploy existing deployment
+      - name: Create Apps Script version
+        id: version
+        run: |
+          set -euo pipefail
+          out=$(clasp version "CI $GITHUB_SHA")
+          echo "$out"
+          version_number=$(echo "$out" | sed -n 's/.*Created version \([0-9][0-9]*\).*/\1/p' | tail -n 1)
+          echo "version_number=$version_number" >> "$GITHUB_OUTPUT"
+
+      - name: Redeploy existing web app deployment
         env:
           GAS_DEPLOYMENT_ID: ${{ secrets.GAS_DEPLOYMENT_ID }}
+        run: clasp deploy --deploymentId "$GAS_DEPLOYMENT_ID" --description "CI redeploy $GITHUB_SHA"
+
+      - name: Deployment summary
+        env:
+          GAS_DEPLOYMENT_ID: ${{ secrets.GAS_DEPLOYMENT_ID }}
+          VERSION_NUMBER: ${{ steps.version.outputs.version_number }}
         run: |
-          clasp deploy -i "$GAS_DEPLOYMENT_ID" -d "CI redeploy $GITHUB_SHA"
+          {
+            echo "### Google Apps Script deployment complete"
+            echo "- Deployment ID: $GAS_DEPLOYMENT_ID"
+            if [ -n "${VERSION_NUMBER:-}" ]; then
+              echo "- Version: $VERSION_NUMBER"
+            fi
+            echo "- Web app URL: https://script.google.com/macros/s/$GAS_DEPLOYMENT_ID/exec"
+          } >> "$GITHUB_STEP_SUMMARY"
