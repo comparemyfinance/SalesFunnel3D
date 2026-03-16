@@ -1,0 +1,147 @@
+name: Deploy to Google Apps Script
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gas-deploy-main
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLASPRC_JSON_B64: ${{ secrets.CLASPRC_JSON_B64 }}
+      CLASP_SCRIPT_ID: ${{ secrets.CLASP_SCRIPT_ID }}
+      GAS_DEPLOYMENT_ID: ${{ secrets.GAS_DEPLOYMENT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Validate required secrets and IDs
+        env:
+          CLASPRC_JSON_B64: ${{ secrets.CLASPRC_JSON_B64 }}
+          CLASP_SCRIPT_ID: ${{ secrets.CLASP_SCRIPT_ID }}
+          GAS_DEPLOYMENT_ID: ${{ secrets.GAS_DEPLOYMENT_ID }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for key in CLASPRC_JSON_B64 CLASP_SCRIPT_ID GAS_DEPLOYMENT_ID; do
+            if [ -z "${!key:-}" ]; then
+              echo "::error::Missing required secret: $key"
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ]
+
+          # Catch the most common configuration mistake: swapping script ID and deployment ID.
+          if [[ "$CLASP_SCRIPT_ID" == AKfy* ]]; then
+            echo "::error::CLASP_SCRIPT_ID looks like a deployment/web-app ID (starts with AKfy...)."
+            echo "::error::Set CLASP_SCRIPT_ID to the Apps Script project Script ID from Project Settings."
+            exit 1
+          fi
+
+          if [[ "$GAS_DEPLOYMENT_ID" != AKfy* ]]; then
+            echo "::error::GAS_DEPLOYMENT_ID should look like a web-app deployment ID (typically starts with AKfy...)."
+            exit 1
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install clasp
+        run: npm install --global @google/clasp
+
+      - name: Build Apps Script payload
+        run: |
+          set -euo pipefail
+          mkdir -p .gas-dist
+          python - <<'PY'
+          import re
+          from pathlib import Path
+
+          index = Path('index.html').read_text(encoding='utf-8')
+          styles = Path('styles.css').read_text(encoding='utf-8')
+          app = Path('app.js').read_text(encoding='utf-8')
+
+          index = re.sub(r'<link\s+rel="stylesheet"\s+href="styles\.css"\s*/?>', f'<style>\n{styles}\n</style>', index)
+          index = re.sub(r'<script\s+src="app\.js"\s*></script>', f'<script>\n{app}\n</script>', index)
+
+          Path('.gas-dist/Index.html').write_text(index, encoding='utf-8')
+          Path('.gas-dist/Code.gs').write_text(
+              "function doGet() {\n"
+              "  return HtmlService.createHtmlOutputFromFile('Index')\n"
+              "    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);\n"
+              "}\n",
+              encoding='utf-8'
+          )
+          Path('.gas-dist/appsscript.json').write_text(
+              '{"timeZone":"Europe/London","runtimeVersion":"V8"}\n',
+              encoding='utf-8'
+          )
+          PY
+
+      - name: Write clasp credentials
+        env:
+          CLASPRC_JSON_B64: ${{ secrets.CLASPRC_JSON_B64 }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$CLASPRC_JSON_B64" | base64 --decode > ~/.clasprc.json
+          chmod 600 ~/.clasprc.json
+
+      - name: Write .clasp.json
+        env:
+          CLASP_SCRIPT_ID: ${{ secrets.CLASP_SCRIPT_ID }}
+        run: |
+          set -euo pipefail
+          printf '{"scriptId":"%s","rootDir":".gas-dist"}\n' "$CLASP_SCRIPT_ID" > .clasp.json
+
+      - name: Show clasp status
+        run: clasp status
+
+      - name: Debug generated Apps Script payload
+        run: |
+          set -euo pipefail
+          echo "Generated files in .gas-dist:"
+          find .gas-dist -maxdepth 1 -type f -print | sort
+          echo ".clasp.json:" 
+          cat .clasp.json
+
+      - name: Push project files
+        run: clasp push --force
+
+      - name: Create Apps Script version
+        id: version
+        run: |
+          set -euo pipefail
+          out=$(clasp version "CI $GITHUB_SHA")
+          echo "$out"
+          version_number=$(echo "$out" | sed -n 's/.*Created version \([0-9][0-9]*\).*/\1/p' | tail -n 1)
+          echo "version_number=$version_number" >> "$GITHUB_OUTPUT"
+
+      - name: Redeploy existing web app deployment
+        env:
+          GAS_DEPLOYMENT_ID: ${{ secrets.GAS_DEPLOYMENT_ID }}
+        run: clasp deploy --deploymentId "$GAS_DEPLOYMENT_ID" --description "CI redeploy $GITHUB_SHA"
+
+      - name: Deployment summary
+        env:
+          GAS_DEPLOYMENT_ID: ${{ secrets.GAS_DEPLOYMENT_ID }}
+          VERSION_NUMBER: ${{ steps.version.outputs.version_number }}
+        run: |
+          {
+            echo "### Google Apps Script deployment complete"
+            echo "- Deployment ID: $GAS_DEPLOYMENT_ID"
+            if [ -n "${VERSION_NUMBER:-}" ]; then
+              echo "- Version: $VERSION_NUMBER"
+            fi
+            echo "- Web app URL: https://script.google.com/macros/s/$GAS_DEPLOYMENT_ID/exec"
+          } >> "$GITHUB_STEP_SUMMARY"
