@@ -18,6 +18,7 @@ const settings = {
 
 const state = {
   processed: 0,
+  entered: 0,
   ntu: 0,
   won: 0,
   gross: 0,
@@ -30,6 +31,25 @@ const state = {
   wonEscrow: [],
   tubeTravellers: [],
 };
+
+const restingCapacity = {
+  ntu: 56,
+  intro: 42,
+  ops: 52,
+  ebitda: 64,
+};
+
+function restingLimit(channel) {
+  const enquiries = Number(settings.enquiriesPerDay);
+  if (!Number.isFinite(enquiries) || enquiries <= 0) return 0;
+
+  const entered = Number(state.entered);
+  const progress = Math.max(0, Math.min(1, (Number.isFinite(entered) ? entered : 0) / enquiries));
+  const base = Number(restingCapacity[channel]);
+  if (!Number.isFinite(base) || base <= 0) return 0;
+
+  return Math.max(0, Math.round(base * progress));
+}
 
 const sceneHost = $('scene');
 const scene = new THREE.Scene();
